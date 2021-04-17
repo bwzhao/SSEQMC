@@ -13,6 +13,7 @@
 #include "Class_CorrMeasurement.h"
 #include "Class_LegLink.h"
 #include <fstream>
+#include <array>
 
 namespace SSE{
     class Class_SSE {
@@ -24,7 +25,7 @@ namespace SSE{
         SSE::type_DataInt Num_Segment;
         std::vector<std::vector<SSE::Class_Oper>> Array_Oper;
         std::vector<std::vector<Class_Oper *>> Array_OperMapping;
-        std::vector<std::vector<std::vector<class_LegLink>>> Array_OperLinkList;
+        std::vector<std::vector<std::array<class_LegLink, MAX_NUMSITE * NUM_LEG_PER_SITE>>> Array_OperLinkList;
 
         std::vector<SSE::type_DataInt> Array_NumOper;
 

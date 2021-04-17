@@ -19,7 +19,9 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
         Str_FileData(_file_data),
         Str_FileCorr(_file_corr),
         Str_NameClass("SSE_"),
-        Array_SpaceLinkList(ThisLattice.Get_NumSite(), std::vector<class_LegLink>(2))
+        Array_SpaceLinkList(ThisLattice.Get_NumSite(), std::vector<class_LegLink>(2)),
+        Array_OperLinkList(_num_Segment),
+        Array_OperMapping(_num_Segment)
 {
     // Initialize Space
     ThisSpace.Set_Class_Space(ThisLattice);
@@ -145,35 +147,34 @@ void SSE::Class_SSE::Generate_Linklist() {
     std::vector<SSE::class_LegLink> first_leg_array(ThisLattice.Get_NumSite(), SSE::class_LegLink());
     std::vector<SSE::class_LegLink> last_leg_array(ThisLattice.Get_NumSite(), SSE::class_LegLink());
 
-    Array_OperMapping.clear();
-    Array_OperLinkList.clear();
-
     //for every time slide
     // Loop through segments
     for (SSE::type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment) {
         // Loop through operators in each segment
         auto & which_Segment = Array_Oper[index_Segment];
-        std::vector<Class_Oper *> temp_OperMapping;
-        std::vector<std::vector<class_LegLink>> temp_OperLinklist;
+        auto & which_OperMapping_Segment = Array_OperMapping[index_Segment];
+        auto & which_OperLink_list_Segment = Array_OperLinkList[index_Segment];
 
         // Remember it is the index in the pure operator list
         SSE::type_DataInt index_oper_inSegment = 0;
+
 //        for (SSE::type_DataInt index_oper_inSegment = 0; index_oper_inSegment != which_Segment.size(); ++index_oper_inSegment) {
         for (auto & which_oper : which_Segment){
             // Exclude identity operators
             if (which_oper.If_Identity()) {
                 continue;
             }
+            which_OperMapping_Segment[index_oper_inSegment] = & which_oper;
 
-            std::vector<class_LegLink> temp_Operlink;
+            auto & temp_Operlink = which_OperLink_list_Segment[index_oper_inSegment];
 
             for (SSE::type_DataInt index_site_inBond = 0; index_site_inBond != which_oper.Get_NumSites(); ++index_site_inBond) {
                 auto index_this_site = ThisLattice.Get_OperSite(which_oper.Get_Index(), index_site_inBond);
 
                 auto this_site_left_leg = NUM_LEG_PER_SITE * index_site_inBond + 1;
-                class_LegLink temp_LeftLink;
+                auto & temp_LeftLink = temp_Operlink[this_site_left_leg];
                 auto this_site_right_leg = NUM_LEG_PER_SITE * index_site_inBond + 0;
-                class_LegLink temp_RightLink;
+                auto & temp_RightLink = temp_Operlink[this_site_right_leg];
 
                 const auto & temp_last_leg = last_leg_array[index_this_site];
 
@@ -184,28 +185,15 @@ void SSE::Class_SSE::Generate_Linklist() {
 //                    temp_LeftLink.Set_LegLink(temp_last_leg);
                     temp_LeftLink = temp_last_leg;
 
-                    if (temp_last_leg.Which_Segment == index_Segment) {
-                        auto & LegLink_linked = temp_OperLinklist[temp_last_leg.Which_Time][temp_last_leg.Which_smLeg];
-                        LegLink_linked.Set_LegLink(index_Segment, index_oper_inSegment, this_site_left_leg);
-                    }
-                    else{
-                        auto & LegLink_linked = Array_OperLinkList[temp_last_leg.Which_Segment][temp_last_leg.Which_Time][temp_last_leg.Which_smLeg];
-                        LegLink_linked.Set_LegLink(index_Segment, index_oper_inSegment, this_site_left_leg);
-                    }
+                    auto & LegLink_linked = Array_OperLinkList[temp_last_leg.Which_Segment][temp_last_leg.Which_Time][temp_last_leg.Which_smLeg];
+                    LegLink_linked.Set_LegLink(index_Segment, index_oper_inSegment, this_site_left_leg);
                 }
                 last_leg_array[index_this_site].Set_LegLink(index_Segment, index_oper_inSegment, this_site_right_leg);
-
-                temp_Operlink.push_back(temp_RightLink);
-                temp_Operlink.push_back(temp_LeftLink);
             }
-            temp_OperMapping.push_back(&which_oper);
-            temp_OperLinklist.push_back(temp_Operlink);
 
             // Counting plus one
             ++index_oper_inSegment;
         }
-        Array_OperMapping.push_back(temp_OperMapping);
-        Array_OperLinkList.push_back(temp_OperLinklist);
     }
 
     //link the last leg and the first leg
@@ -255,13 +243,21 @@ void SSE::Class_SSE::Adjust_Cutoff() {
     SSE::type_DataInt max_NumOper_inSegment = *(std::max_element(Array_NumOper.begin(), Array_NumOper.end()));
     SSE::type_DataInt NumTime_inSegment = Array_Oper.back().size();
 
+    for (SSE::type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment) {
+        Array_OperLinkList[index_Segment].resize(Array_NumOper[index_Segment]);
+        Array_OperMapping[index_Segment].resize(Array_NumOper[index_Segment]);
+    }
+
     if (((max_NumOper_inSegment * 1.2) > NumTime_inSegment) || (sum_NumOper * 1.5 / Array_NumOper.size() > NumTime_inSegment) ) {
         auto new_NumTime = std::max(static_cast<SSE::type_DataInt>(sum_NumOper * 1.5 / Array_NumOper.size()),
                                     static_cast<SSE::type_DataInt>(max_NumOper_inSegment * 1.2)) + 1;
 //        auto Oper_Array_Size = static_cast<int>(Oper_Loc_Array.size());
-        for (auto & which_Segment : Array_Oper) {
-            which_Segment.resize(new_NumTime);
+        for (SSE::type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment) {
+            Array_Oper[index_Segment].resize(new_NumTime);
         }
+//        for (auto & which_Segment : Array_Oper) {
+//            which_Segment.resize(new_NumTime);
+//        }
     }
 }
 
@@ -282,7 +278,7 @@ void SSE::Class_SSE::Loop_Update() {
 
             auto & which_StartOperLink = which_start_Segment_LegLinkList[index_start_oper];
             // For each legs
-            for (SSE::type_DataInt index_start_leg = 0; index_start_leg != which_StartOperLink.size(); ++index_start_leg) {
+            for (SSE::type_DataInt index_start_leg = 0; index_start_leg != which_start_oper.Get_NumLegs(); ++index_start_leg) {
                 // Only consider the unupdated legs
                 if (which_StartOperLink[index_start_leg].If_Unupdated()) {
                     SSE::class_LegLink COPY_StartLeg = {index_start_Segment, index_start_oper, index_start_leg};

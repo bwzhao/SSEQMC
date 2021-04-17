@@ -35,6 +35,7 @@ namespace SSE{
         void Reset_fromDiatoID();
 
         type_DataInt Get_NumSites() const;
+        type_DataInt Get_NumLegs() const;
         type_DataInt Get_Index() const;
         type_DataInt Get_Type() const;
 
@@ -65,6 +66,10 @@ inline void SSE::Class_Oper::Reset_fromDiatoID() {
 
 inline SSE::type_DataInt SSE::Class_Oper::Get_NumSites() const {
     return ARRAY_NUMSITE[Which_Type];
+}
+
+inline SSE::type_DataInt SSE::Class_Oper::Get_NumLegs() const {
+    return ARRAY_NUMSITE[Which_Type] * NUM_LEG_PER_SITE;
 }
 
 inline SSE::type_DataInt SSE::Class_Oper::Get_Index() const {

@@ -62,13 +62,17 @@ namespace SSE{
     constexpr type_DataInt DETAILEDTYPE_Q2x = 5;
 
     // Properties:
-    constexpr type_DataInt NUM_LEG_PER_SITE = 2;
+
 
     // Number of Sites
+    constexpr type_DataInt MAX_NUMSITE = 4;
     constexpr type_DataInt NUMSITE_t = 2;
     constexpr type_DataInt NUMSITE_J = 2;
     constexpr type_DataInt NUMSITE_Q2 = 4;
     const std::vector<type_DataInt> ARRAY_NUMSITE = {NUMSITE_t, NUMSITE_J, NUMSITE_Q2};
+
+
+    constexpr type_DataInt NUM_LEG_PER_SITE = 2;
 
     // Check pair
 //    const std::vector<std::vector<type_DataInt>> CHECKPAIR_t = {{0, 1}};
