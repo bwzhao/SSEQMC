@@ -20,6 +20,7 @@ namespace SSE{
         void Set_Class_Space(const SSE::Class_Lattice & _which_Lattice);
 
         SSE::type_DataInt Get_Spin(type_DataInt _which_site) const;
+        std::vector<SSE::type_DataInt> & Get_Array_Spin();
         void Set_Spin(type_DataInt _which_site, type_DataInt _which_value);
         void Flip_Spin(type_DataInt _which_site);
 
@@ -90,4 +91,8 @@ inline std::array<SSE::type_DataFloat, 4> SSE::Class_Space::Measure_md(const SSE
                                                       static_cast<type_DataFloat>(sum_mdc_y)  / 4. / _which_Lattice.Get_NumSite(),
                                                       static_cast<type_DataFloat>(sum_mds_x) / 4. / _which_Lattice.Get_NumSite(),
                                                       static_cast<type_DataFloat>(sum_mds_y) / 4. / _which_Lattice.Get_NumSite()}};
+}
+
+inline std::vector<SSE::type_DataInt> &SSE::Class_Space::Get_Array_Spin() {
+    return this->Array_Spin;
 }

@@ -7,6 +7,8 @@
 #include "Config.h"
 #include "Class_Lattice.h"
 #include "Class_Space.h"
+#include <fstream>
+#include "Class_fMat.h"
 
 namespace SSE{
     class Class_Oper {
@@ -19,6 +21,9 @@ namespace SSE{
 
         // Which status of this operator
         // Detailed definition, please see Lattice.h
+        // For t oper: 0-> up-up or down-down; 1-> up-down or down-up
+        // For J oper: 0-> dia; 1-> off-dia
+        // For Q2 oper: (Which_Status / Which_part % 2): 0-> dia; 1-> off-dia
         type_DataInt Which_Status;
 
     public:
@@ -41,6 +46,11 @@ namespace SSE{
 
         //Update the operator in Loop update process
         type_DataInt Update_Oper(type_DataInt _which_Leg, bool _ifFlip);
+        void Update_fMat(SSE::Class_fMat<type_DataFloat> &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const;
+
+        // Write the list:
+        void Write_Oper(std::ofstream &_which_file);
+        void Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice);
 
     };
 }
@@ -78,6 +88,23 @@ inline SSE::type_DataInt SSE::Class_Oper::Get_Index() const {
 
 inline SSE::type_DataInt SSE::Class_Oper::Get_Type() const {
     return Which_Type;
+}
+
+inline void SSE::Class_Oper::Write_Oper(std::ofstream &_which_file) {
+    _which_file.write(reinterpret_cast<char *>(&this->Which_Index), sizeof(decltype(this->Which_Index)));
+    _which_file.write(reinterpret_cast<char *>(&Which_Status), sizeof(decltype(this->Which_Status)));
+}
+
+inline void SSE::Class_Oper::Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice) {
+    _which_file.read(reinterpret_cast<char *>(&this->Which_Index), sizeof(decltype(this->Which_Index)));
+    _which_file.read(reinterpret_cast<char *>(&this->Which_Status), sizeof(decltype(this->Which_Status)));
+    if (this->Which_Index != -1) {
+        this->Set_Oper_temp(this->Which_Index, _which_Lattice);
+    }
+    else{
+        this->Which_Index = SSE::OPERTYPE_ID;
+        this->Which_Type = DETAILEDTYPE_ID;
+    }
 }
 
 

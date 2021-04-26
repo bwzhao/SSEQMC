@@ -13,7 +13,15 @@ SSE::Class_Oper::Class_Oper():
 
 bool SSE::Class_Oper::If_Suitable_andUpdateTypeOper(SSE::Class_Space &_which_Space, const SSE::Class_Lattice &_which_Lattice){
     if (this->Which_Type == SSE::OPERTYPE_t) {
-        this->Which_Status = 0;
+        auto spin_0 = _which_Space.Get_Spin(_which_Lattice.Get_OperSite(this->Which_Index, 0));
+        auto spin_1 = _which_Space.Get_Spin(_which_Lattice.Get_OperSite(this->Which_Index, 1));
+        if (spin_0 == spin_1) {
+            this->Which_Status = 0;
+        }
+        else{
+            this->Which_Status = 1;
+        }
+
         return true;
     }
     else if (this->Which_Type == SSE::OPERTYPE_J) {
@@ -153,6 +161,9 @@ SSE::type_DataInt SSE::Class_Oper::Update_Oper(SSE::type_DataInt _which_Leg, boo
 
     if (this->Which_Type == SSE::OPERTYPE_t) {
         auto other_leg =  SSE::T_t[_which_Leg];
+        if (_ifFlip) {
+            Which_Status = (Which_Status + 1) % 2;
+        }
         return other_leg;
     }
         // Depend on different operators
@@ -177,4 +188,32 @@ SSE::type_DataInt SSE::Class_Oper::Update_Oper(SSE::type_DataInt _which_Leg, boo
         }
         return other_leg;
     }
+}
+
+void SSE::Class_Oper::Update_fMat(SSE::Class_fMat<type_DataFloat> &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const {
+    if (this->Which_Type == SSE::OPERTYPE_J) {
+        const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+        const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+        //If it is a diagonal operator
+        if (Which_Status == 0) {
+            _which_fMat.Set_Row(index_Site_0, 0);
+            _which_fMat.Set_Row(index_Site_1, 0);
+        }
+        else{
+            auto temp_weight = 2. * _which_Lattice.Get_ParaHamil().tx / _which_Lattice.Get_ParaHamil().Jx;
+            _which_fMat.Multi_Row(index_Site_0, temp_weight);
+            _which_fMat.Multi_Row(index_Site_1, temp_weight);
+            _which_fMat.Swap_Row(index_Site_0, index_Site_1);
+        }
+    }
+    else if (this->Which_Type == SSE::OPERTYPE_t) {
+        // If it is the up/up matrix
+        if (Which_Status == 0) {
+            const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+            const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+
+            _which_fMat.SwapMinus_Row(index_Site_0, index_Site_1);
+        }
+    }
+
 }

@@ -68,6 +68,8 @@ namespace SSE{
         const std::vector<SSE::type_DataInt> &Get_Qs() const;
         const std::vector<SSE::type_DataInt> &Get_Qx() const;
         const std::vector<SSE::type_DataInt> &Get_Qy() const;
+        SSE::type_NumSite Get_Sitediff(type_NumSite _which_site, type_NumSite _diff) const;
+        const std::vector<SSE::type_DataInt> &Get_array_Sitediff(type_NumSite _diff) const;
 
         // About update
         type_DataInt Get_RandomBond() const;
@@ -139,4 +141,12 @@ inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_Qy() const 
 
 inline SSE::type_DataInt SSE::Class_Lattice::Get_DetailedType(SSE::type_DataInt _which_index) const {
     return Map_Oper_Detailedtype[_which_index];
+}
+
+inline SSE::type_NumSite SSE::Class_Lattice::Get_Sitediff(type_NumSite _which_site, type_NumSite _diff) const{
+    return Map_Site_DiffSite[_which_site][_diff];
+}
+
+inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_array_Sitediff(SSE::type_NumSite _diff) const {
+    return Map_Site_DiffSite[_diff];
 }

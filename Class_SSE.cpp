@@ -76,6 +76,12 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
             MeasureData.emplace_back(temp_Class_DataMeasurement);
         }
     }
+
+    // Initialize f measurement
+    SSE::Class_CorrMeasurement<SSE::type_DataFloat> temp_Array_Corr;
+    for (SSE::type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site) {
+        Corr_ftau.emplace_back(temp_Array_Corr);
+    }
 }
 
 
@@ -248,8 +254,8 @@ void SSE::Class_SSE::Adjust_Cutoff() {
         Array_OperMapping[index_Segment].resize(Array_NumOper[index_Segment]);
     }
 
-    if (((max_NumOper_inSegment * 1.2) > NumTime_inSegment) || (sum_NumOper * 1.5 / Array_NumOper.size() > NumTime_inSegment) ) {
-        auto new_NumTime = std::max(static_cast<SSE::type_DataInt>(sum_NumOper * 1.5 / Array_NumOper.size()),
+    if (((max_NumOper_inSegment * 1.2) > NumTime_inSegment) || (sum_NumOper * 1.5 / Num_Segment > NumTime_inSegment) ) {
+        auto new_NumTime = std::max(static_cast<SSE::type_DataInt>(sum_NumOper * 1.5 / Num_Segment),
                                     static_cast<SSE::type_DataInt>(max_NumOper_inSegment * 1.2)) + 1;
 //        auto Oper_Array_Size = static_cast<int>(Oper_Loc_Array.size());
         for (SSE::type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment) {
@@ -269,7 +275,7 @@ void SSE::Class_SSE::Loop_Update() {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Loop through all the legs in each segment
     // For each segment
-    for (type_DataInt index_start_Segment = 0; index_start_Segment != Array_OperMapping.size(); ++index_start_Segment) {
+    for (type_DataInt index_start_Segment = 0; index_start_Segment != Num_Segment; ++index_start_Segment) {
         auto &which_start_Segment_Oper = Array_OperMapping[index_start_Segment];
         auto &which_start_Segment_LegLinkList = Array_OperLinkList[index_start_Segment];
         // For each operators
@@ -347,7 +353,7 @@ SSE::class_LegLink SSE::Class_SSE::Find_Nextinleg_UpdateSpace(const SSE::class_L
 }
 
 void SSE::Class_SSE::CheckLinkList() const {
-    for (type_DataInt index_start_Segment = 0; index_start_Segment != Array_OperMapping.size(); ++index_start_Segment) {
+    for (type_DataInt index_start_Segment = 0; index_start_Segment != Num_Segment; ++index_start_Segment) {
         auto &which_start_Segment_LegLinkList = Array_OperLinkList[index_start_Segment];
         if (Array_NumOper[index_start_Segment] != Array_OperMapping[index_start_Segment].size()){
             throw std::runtime_error("Oper Number Error");
@@ -512,5 +518,156 @@ void SSE::Class_SSE::WriteBins() {
         which_MeaClass.ClearValue();
     }
     outfile << std::endl;
+    outfile.close();
+}
+
+void SSE::Class_SSE::Write_Config(SSE::type_DataInt which_sweep) {
+    //Write Spin
+    auto str_filename_info = Str_FileConfig + Str_NameClass + Str_NameFile + "_info.txt";
+    std::ofstream file_info(str_filename_info);
+    file_info << which_sweep << std::endl;
+
+    file_info << Array_Oper.back().size() << std::endl;
+    file_info << Num_Segment << std::endl;
+    file_info.close();
+
+    auto str_filename_data = Str_FileConfig + Str_NameClass + Str_NameFile + "_data.bin";
+    std::ofstream file_data(str_filename_data, std::ios::out | std::ios::binary);
+    file_data.write(reinterpret_cast<char *>(ThisSpace.Get_Array_Spin().data()), ThisSpace.Get_Array_Spin().size() * sizeof(decltype(ThisSpace.Get_Array_Spin().back())));
+
+    // Write the operator configuration
+    for (auto &which_Segment: Array_Oper) {
+        for (auto &which_oper: which_Segment) {
+            which_oper.Write_Oper(file_data);
+        }
+    }
+    file_data.write(reinterpret_cast<char *>(Array_NumOper.data()), Num_Segment * sizeof(decltype(Array_NumOper.back())));
+    file_data.close();
+}
+
+SSE::type_DataInt SSE::Class_SSE::Read_Config(SSE::type_DataInt _total_sweep) {
+    auto str_filename_info = Str_FileConfig + Str_NameClass + Str_NameFile + "_info.txt";
+    std::ifstream file_info(str_filename_info);
+
+    if(!file_info.good()){
+        std::cout << "There is no warmup file!" << std::endl;
+        file_info.close();
+        return 0;
+    }
+    SSE::type_DataInt which_sweep = 0;
+    file_info >> which_sweep;
+
+    decltype(Array_Oper.back().size()) size_Array_Oper_Segment = 0;
+    file_info >> size_Array_Oper_Segment;
+    for (auto &which_Oper_segment : Array_Oper) {
+        which_Oper_segment.resize(size_Array_Oper_Segment);
+    }
+
+    decltype(Array_NumOper.size()) size_Array_NumOper = 0;
+    file_info >> size_Array_NumOper;
+    Array_NumOper.resize(size_Array_NumOper);
+
+    file_info.close();
+
+    auto str_filename_data = Str_FileConfig + Str_NameClass + Str_NameFile + "_data.bin";
+    std::ifstream file_data(str_filename_data, std::ios::in | std::ios::binary);
+    file_data.read(reinterpret_cast<char *>(ThisSpace.Get_Array_Spin().data()), ThisSpace.Get_Array_Spin().size() * sizeof(decltype(ThisSpace.Get_Array_Spin().back())));
+
+    for (auto &which_Segment: Array_Oper) {
+        for (auto &which_oper: which_Segment) {
+            which_oper.Read_Oper(file_data, ThisLattice);
+        }
+    }
+
+    file_data.read(reinterpret_cast<char *>(Array_NumOper.data()), Num_Segment * sizeof(decltype(Array_NumOper.back())));
+    file_data.close();
+
+    return which_sweep;
+}
+
+void SSE::Class_SSE::Measure_Corrf() {
+    // Initial spin configuration vector
+    // Note it taks the value of 0 or 1
+    auto temp_arrayspin_j = ThisSpace.Get_Array_Spin();
+
+    static SSE::Class_fMat<type_DataFloat> temp_fMat(ThisLattice.Get_NumSite());
+    temp_fMat.Reset();
+
+    static std::vector<std::valarray<type_DataFloat>> array_vec_Gq(ThisLattice.Get_NumSite(), std::valarray<type_DataFloat>(Num_Measure_TimeSlices));
+
+    SSE::type_DataInt val_taudiff = 0;
+    for (type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment){
+        if ((Num_Measure_TimeSlices - val_taudiff) > (Num_Segment - index_Segment)) {
+            break;
+        }
+
+        // Update ftau
+        for (auto &which_oper : Array_Oper[index_Segment]) {
+            if (!which_oper.If_Identity()) {
+                // Just use this function to update the space
+                which_oper.If_Dia_IfnotUpdateSpace(ThisSpace, ThisLattice);
+
+                // Update fMat only if it is not the last slice
+                which_oper.Update_fMat(temp_fMat, ThisLattice);
+            }
+        }
+
+        // value of tau plus one
+        ++val_taudiff;
+
+        // Measure
+//        std::vector<type_DataFloat> temp_Gtau(ThisLattice.Num_Site, 0.);
+        for (type_NumSite index_diff = 0; index_diff != ThisLattice.Get_NumSite(); ++index_diff) {
+            type_DataFloat temp_Gq = 0.;
+            const auto & temp_array_site_j = ThisLattice.Get_array_Sitediff(index_diff);
+            for (type_NumSite index_site_i = 0; index_site_i != ThisLattice.Get_NumSite(); ++index_site_i) {
+//            for (type_NumSite index_site_i = 0; index_site_i != 1; ++index_site_i) {
+                const auto phase_i =ThisSpace.Get_Spin(index_site_i);
+                const auto index_site_j = temp_array_site_j[index_site_i];
+                const auto phase_j = temp_arrayspin_j[index_site_j];
+                if (phase_i + phase_j != 2) {
+                    continue;
+                }
+                const auto ele_fMat = temp_fMat.Get(index_site_i, index_site_j);
+                temp_Gq += ele_fMat;
+            }
+            array_vec_Gq[index_diff][val_taudiff - 1] = temp_Gq / static_cast<type_DataFloat>(ThisLattice.Get_NumSite());
+        }
+
+        // If it measured the full time slices
+        if (val_taudiff == Num_Measure_TimeSlices) {
+            for (type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site) {
+                Corr_ftau[index_site].AppendValue(array_vec_Gq[index_site]);
+                // Don't need to reset
+//                array_vec_Gq[index_site] = 0.;
+            }
+
+            // Restart to count the time slices
+            temp_fMat.Reset();
+
+            // Reset the initial spin
+            temp_arrayspin_j = ThisSpace.Get_Array_Spin();
+
+            val_taudiff = 0;
+        }
+    }
+}
+
+void SSE::Class_SSE::Write_Corrf() {
+    std::ofstream outfile;
+    outfile.open(Str_FileCorr + Str_NameClass + Str_NameFile + ".txt", std::ofstream::out | std::ofstream::app);
+//    outfile.setf(std::ios::fixed);
+//    outfile.precision(10);
+
+    // For all q-values
+    for (type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site){
+        auto temp_Ave = Corr_ftau[index_site].Get_AveValue();
+        Corr_ftau[index_site].ClearValue();
+
+        for (type_DataInt index_tau = 0; index_tau != temp_Ave.size(); ++index_tau) {
+            SSE::type_DataFloat val_tau = static_cast<SSE::type_DataFloat>(index_tau + 1) * ThisLattice.Get_ParaHamil().beta / this->Array_NumOper.size();
+            outfile << index_site << '\t' << val_tau << '\t' << temp_Ave[index_tau] << std::endl;
+        }
+    }
     outfile.close();
 }

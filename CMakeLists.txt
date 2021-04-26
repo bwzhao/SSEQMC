@@ -11,4 +11,4 @@ add_executable(20210327_NewProgram
         Class_Lattice.cpp
         Class_Lattice.h
         Class_CorrMeasurement.h
-        Class_DataMeasurement.h Class_Oper.cpp Class_Oper.h Class_Space.cpp Class_Space.h Class_LegLink.h Class_SiteLabel.h)
+        Class_DataMeasurement.h Class_Oper.cpp Class_Oper.h Class_Space.cpp Class_Space.h Class_LegLink.h Class_SiteLabel.h Class_fMat.h)

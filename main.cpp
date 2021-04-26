@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     );
 //    // Read the warm-up file, if any. Or current_sweep = 0;
     SSE::type_DataInt current_sweep = 0;
-////    current_sweep = LittleLion.Read_Config(Num_Warmup);
+    current_sweep = LittleLion.Read_Config(Num_Warmup);
 //
 //    // Start to do warm-up
 //    // The system must have enough warm-up steps to start doing measurement.
@@ -88,11 +88,11 @@ int main(int argc, char *argv[]) {
             LittleLion.Flip_Update();
             LittleLion.Loop_Update();
             // Store the configurations.
-//            if (Num_Warmup / 100 != 0) {
-//                if (index_sweep / (Num_Warmup / 100) * (Num_Warmup / 100) == index_sweep) {
-//                    LittleLion.Write_Config(index_sweep);
-//                }
-//            }
+            if (Num_Warmup / 20 != 0) {
+                if (index_sweep / (Num_Warmup / 20) * (Num_Warmup / 20) == index_sweep) {
+                    LittleLion.Write_Config(index_sweep);
+                }
+            }
         }
     }
 //
@@ -103,31 +103,15 @@ int main(int argc, char *argv[]) {
     for (int index_bin = 0; index_bin != Num_Bin; ++index_bin) {
         for (int nl_sweep = 0; nl_sweep != Num_SweepinBin; nl_sweep++) {
             LittleLion.DiagonalUpdate();
+            LittleLion.Adjust_Cutoff();
             LittleLion.Generate_Linklist();
             LittleLion.Flip_Update();
             LittleLion.Loop_Update();
-            LittleLion.Measure_woDynamics();
-//            LittleLion.Measure_Hist();
-//            LittleLion.Measure_Snapshot();
-//            LittleLion.Measure_NNBondCorrHist();
-//            LittleLion.Measure_Corr();
-//            LittleLion.Measure_JTHist();
-//            LittleLion.Measure_Energy();
-//            LittleLion.Measure_mhHist();
-//            LittleLion.Measure_Corrf_simple();
-//            LittleLion.Measure_Corrf_simpleSingle();
+//            LittleLion.Measure_woDynamics();
+            LittleLion.Measure_Corrf();
         }
-        LittleLion.WriteBins();
-//        LittleLion.write_Hist();
-//        LittleLion.write_Snapshot();
-//        LittleLion.write_SpaceCorr();
-//        LittleLion.Write_NNBondCorrHist();
-//        LittleLion.Write_Corr();
-//        LittleLion.write_JTHist();
-//        LittleLion.Write_EnergyBins();
-//            LittleLion.Write_mhHist();
-//        LittleLion.Write_Corrf();
-//        LittleLion.Write_CorrfSingle();
+//        LittleLion.WriteBins();
+        LittleLion.Write_Corrf();
 
         // Store the configurations
         if (Num_Bin / 10 != 0) {

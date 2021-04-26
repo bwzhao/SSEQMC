@@ -14,6 +14,7 @@
 #include "Class_LegLink.h"
 #include <fstream>
 #include <array>
+#include "Class_fMat.h"
 
 namespace SSE{
     class Class_SSE {
@@ -71,6 +72,12 @@ namespace SSE{
 
         void Measure_woDynamics();
         void WriteBins();
+
+        void Measure_Corrf();
+        void Write_Corrf();
+
+        void Write_Config(type_DataInt which_sweep);
+        type_DataInt Read_Config(type_DataInt _total_sweep);
 
         // Functions related to lilnklist
         bool If_CanFlip(type_NumSite _which_site);
