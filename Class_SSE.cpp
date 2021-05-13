@@ -79,7 +79,7 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
 
     // Initialize f measurement
     SSE::Class_CorrMeasurement<SSE::type_DataFloat> temp_Array_Corr;
-    for (SSE::type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site) {
+    for (SSE::type_NumSite index_tau = 0; index_tau != this->Num_Measure_TimeSlices; ++index_tau) {
         Corr_ftau.emplace_back(temp_Array_Corr);
     }
 }
@@ -587,11 +587,10 @@ SSE::type_DataInt SSE::Class_SSE::Read_Config(SSE::type_DataInt _total_sweep) {
 
 void SSE::Class_SSE::Measure_Corrf() {
     // Initial spin configuration vector
-    // Note it taks the value of 0 or 1
-    auto temp_arrayspin_j = ThisSpace.Get_Array_Spin();
 
-    static SSE::Class_fMat<type_DataFloat> temp_fMat(ThisLattice.Get_NumSite());
-    temp_fMat.Reset();
+    static SSE::Class_fMat temp_fMat(ThisLattice.Get_NumSite());
+    // Note it taks the value of 0 or 1
+    temp_fMat.Reset( ThisSpace.Get_Array_Spin());
 
     static std::vector<std::valarray<type_DataFloat>> array_vec_Gq(ThisLattice.Get_NumSite(), std::valarray<type_DataFloat>(Num_Measure_TimeSlices));
 
@@ -617,41 +616,58 @@ void SSE::Class_SSE::Measure_Corrf() {
 
         // Measure
 //        std::vector<type_DataFloat> temp_Gtau(ThisLattice.Num_Site, 0.);
-        for (type_NumSite index_diff = 0; index_diff != ThisLattice.Get_NumSite(); ++index_diff) {
-            type_DataFloat temp_Gq = 0.;
-            const auto & temp_array_site_j = ThisLattice.Get_array_Sitediff(index_diff);
-            for (type_NumSite index_site_i = 0; index_site_i != ThisLattice.Get_NumSite(); ++index_site_i) {
-//            for (type_NumSite index_site_i = 0; index_site_i != 1; ++index_site_i) {
-                const auto phase_i =ThisSpace.Get_Spin(index_site_i);
-                const auto index_site_j = temp_array_site_j[index_site_i];
-                const auto phase_j = temp_arrayspin_j[index_site_j];
-                if (phase_i + phase_j != 2) {
-                    continue;
-                }
-                const auto ele_fMat = temp_fMat.Get(index_site_i, index_site_j);
-                temp_Gq += ele_fMat;
-            }
-            array_vec_Gq[index_diff][val_taudiff - 1] = temp_Gq / static_cast<type_DataFloat>(ThisLattice.Get_NumSite());
-        }
+        temp_fMat.Measure( Corr_ftau[val_taudiff - 1], ThisLattice);
 
         // If it measured the full time slices
         if (val_taudiff == Num_Measure_TimeSlices) {
-            for (type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site) {
-                Corr_ftau[index_site].AppendValue(array_vec_Gq[index_site]);
-                // Don't need to reset
-//                array_vec_Gq[index_site] = 0.;
-            }
-
             // Restart to count the time slices
-            temp_fMat.Reset();
-
-            // Reset the initial spin
-            temp_arrayspin_j = ThisSpace.Get_Array_Spin();
+            temp_fMat.Reset(ThisSpace.Get_Array_Spin());
 
             val_taudiff = 0;
         }
     }
 }
+
+void SSE::Class_SSE::Measure_Corrf_Simple() {
+// Initial spin configuration vector
+    // Note it taks the value of 0 or 1
+    auto temp_Gx = std::valarray<type_DataFloat>(0., ThisLattice.Get_NumSite());
+    temp_Gx[0] = 0.5;
+
+//    static std::vector<std::valarray<type_DataFloat>> array_vec_Gq(ThisLattice.Get_NumSite(), std::valarray<type_DataFloat>(Num_Measure_TimeSlices));
+
+    SSE::type_DataInt val_taudiff = 0;
+    for (type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment){
+        if ((Num_Measure_TimeSlices - val_taudiff) > (Num_Segment - index_Segment)) {
+            break;
+        }
+
+        // Update ftau
+        for (auto &which_oper : Array_Oper[index_Segment]) {
+            if (!which_oper.If_Identity()) {
+                // Just use this function to update the space
+                which_oper.If_Dia_IfnotUpdateSpace(ThisSpace, ThisLattice);
+
+                // Update fMat only if it is not the last slice
+                which_oper.Update_fVec(temp_Gx, ThisLattice);
+            }
+        }
+
+        // value of tau plus one
+        ++val_taudiff;
+
+        Corr_ftau[val_taudiff - 1].AppendValue(temp_Gx);
+
+        // Measure
+        if (val_taudiff == Num_Measure_TimeSlices) {
+            temp_Gx = 0.;
+            temp_Gx[0] = 0.5;
+
+            val_taudiff = 0;
+        }
+    }
+}
+
 
 void SSE::Class_SSE::Write_Corrf() {
     std::ofstream outfile;
@@ -660,14 +676,14 @@ void SSE::Class_SSE::Write_Corrf() {
 //    outfile.precision(10);
 
     // For all q-values
-    for (type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site){
-        auto temp_Ave = Corr_ftau[index_site].Get_AveValue();
-        Corr_ftau[index_site].ClearValue();
-
-        for (type_DataInt index_tau = 0; index_tau != temp_Ave.size(); ++index_tau) {
+    for (type_DataInt index_tau = 0; index_tau != Num_Measure_TimeSlices; ++index_tau) {
+        auto temp_Ave = Corr_ftau[index_tau].Get_AveValue();
+        Corr_ftau[index_tau].ClearValue();
+        for (type_NumSite index_site = 0; index_site != ThisLattice.Get_NumSite(); ++index_site){
             SSE::type_DataFloat val_tau = static_cast<SSE::type_DataFloat>(index_tau + 1) * ThisLattice.Get_ParaHamil().beta / this->Array_NumOper.size();
-            outfile << index_site << '\t' << val_tau << '\t' << temp_Ave[index_tau] << std::endl;
+            outfile << index_site << '\t' << val_tau << '\t' << temp_Ave[index_site] << std::endl;
         }
     }
     outfile.close();
 }
+

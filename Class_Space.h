@@ -10,6 +10,7 @@
 #include <random>
 #include <array>
 #include <numeric>
+#include <ctime>
 
 namespace SSE{
     class Class_Space {

@@ -9,6 +9,7 @@
 #include "Class_Space.h"
 #include <fstream>
 #include "Class_fMat.h"
+#include <ctime>
 
 namespace SSE{
     class Class_Oper {
@@ -46,7 +47,8 @@ namespace SSE{
 
         //Update the operator in Loop update process
         type_DataInt Update_Oper(type_DataInt _which_Leg, bool _ifFlip);
-        void Update_fMat(SSE::Class_fMat<type_DataFloat> &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const;
+        void Update_fMat(SSE::Class_fMat &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const;
+        void Update_fVec(std::valarray<type_DataFloat> &_which_fVec, const SSE::Class_Lattice &_which_Lattice) const;
 
         // Write the list:
         void Write_Oper(std::ofstream &_which_file);
@@ -106,6 +108,8 @@ inline void SSE::Class_Oper::Read_Oper(std::ifstream &_which_file, const SSE::Cl
         this->Which_Type = DETAILEDTYPE_ID;
     }
 }
+
+
 
 
 

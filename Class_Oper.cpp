@@ -190,14 +190,14 @@ SSE::type_DataInt SSE::Class_Oper::Update_Oper(SSE::type_DataInt _which_Leg, boo
     }
 }
 
-void SSE::Class_Oper::Update_fMat(SSE::Class_fMat<type_DataFloat> &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const {
+void SSE::Class_Oper::Update_fMat(SSE::Class_fMat &_which_fMat, const SSE::Class_Lattice &_which_Lattice) const {
     if (this->Which_Type == SSE::OPERTYPE_J) {
         const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
         const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
         //If it is a diagonal operator
         if (Which_Status == 0) {
-            _which_fMat.Set_Row(index_Site_0, 0);
-            _which_fMat.Set_Row(index_Site_1, 0);
+            _which_fMat.Set_RowZero(index_Site_0);
+            _which_fMat.Set_RowZero(index_Site_1);
         }
         else{
             auto temp_weight = 2. * _which_Lattice.Get_ParaHamil().tx / _which_Lattice.Get_ParaHamil().Jx;
@@ -216,4 +216,78 @@ void SSE::Class_Oper::Update_fMat(SSE::Class_fMat<type_DataFloat> &_which_fMat, 
         }
     }
 
+}
+
+void SSE::Class_Oper::Update_fVec(std::valarray<type_DataFloat> &_which_fVec,
+                                  const SSE::Class_Lattice &_which_Lattice) const {
+    if (this->Which_Type == SSE::OPERTYPE_J) {
+        const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+        const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+        //If it is a diagonal operator
+        if (Which_Status == 0) {
+            _which_fVec[index_Site_0] = 0;
+            _which_fVec[index_Site_1] = 0;
+        }
+        else{
+            auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                    2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
+            auto temp_val_0 = _which_fVec[index_Site_0] * temp_weight;
+            auto temp_val_1 = _which_fVec[index_Site_1] * temp_weight;
+
+            _which_fVec[index_Site_0] = temp_val_1;
+            _which_fVec[index_Site_1] = temp_val_0;
+        }
+    }
+    else if (this->Which_Type == SSE::OPERTYPE_t) {
+        // If it is the up/up matrix
+        if (Which_Status == 0) {
+            const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+            const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+
+            auto temp_val_0 = _which_fVec[index_Site_0];
+            auto temp_val_1 = _which_fVec[index_Site_1];
+
+            _which_fVec[index_Site_0] = temp_val_0 - temp_val_1;
+            _which_fVec[index_Site_1] = temp_val_1 - temp_val_0;
+        }
+        // up/down case, still the same
+    }
+    // Q2 oper
+    else{
+        if ((Which_Status == 0) or (Which_Status == 3)) {
+            const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+            const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+            const auto index_Site_2 = _which_Lattice.Get_OperSite(this->Which_Index, 2);
+            const auto index_Site_3 = _which_Lattice.Get_OperSite(this->Which_Index, 3);
+
+            _which_fVec[index_Site_0] = 0.;
+            _which_fVec[index_Site_1] = 0.;
+            _which_fVec[index_Site_2] = 0.;
+            _which_fVec[index_Site_3] = 0.;
+        }
+        else {
+            if (Which_Status % 2 != 0) {
+                const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+                const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+
+                auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                                                                        2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
+                auto temp_val_0 = _which_fVec[index_Site_0] * temp_weight;
+                auto temp_val_1 = _which_fVec[index_Site_1] * temp_weight;
+
+                _which_fVec[index_Site_0] = temp_val_1;
+                _which_fVec[index_Site_1] = temp_val_0;
+            }
+            else {
+                const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 2);
+                const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 3);
+                auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                                                                        2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
+                auto temp_val_0 = _which_fVec[index_Site_0] * temp_weight;
+                auto temp_val_1 = _which_fVec[index_Site_1] * temp_weight;
+
+                _which_fVec[index_Site_0] = temp_val_1;
+            }
+        }
+    }
 }

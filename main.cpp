@@ -7,6 +7,7 @@
 #include <vector>
 #include "Config.h"
 #include "Class_SSE.h"
+#include <ctime>
 
 int main(int argc, char *argv[]) {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,7 +86,7 @@ int main(int argc, char *argv[]) {
             LittleLion.Adjust_Cutoff();
             LittleLion.Generate_Linklist();
 //            LittleLion.CheckLinkList();
-            LittleLion.Flip_Update();
+//            LittleLion.Flip_Update();
             LittleLion.Loop_Update();
             // Store the configurations.
             if (Num_Warmup / 20 != 0) {
@@ -105,10 +106,11 @@ int main(int argc, char *argv[]) {
             LittleLion.DiagonalUpdate();
             LittleLion.Adjust_Cutoff();
             LittleLion.Generate_Linklist();
-            LittleLion.Flip_Update();
+//            LittleLion.Flip_Update();
             LittleLion.Loop_Update();
 //            LittleLion.Measure_woDynamics();
             LittleLion.Measure_Corrf();
+//            LittleLion.Measure_Corrf_Simple();
         }
 //        LittleLion.WriteBins();
         LittleLion.Write_Corrf();

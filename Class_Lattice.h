@@ -10,6 +10,9 @@
 #include <numeric>
 #include <random>
 #include "Class_SiteLabel.h"
+#include <ctime>
+#include <algorithm>
+#include <stdexcept>
 
 namespace SSE{
     class Class_Lattice {
@@ -50,6 +53,7 @@ namespace SSE{
         std::vector<SSE::type_DataInt> Map_Site_Qs;
         std::vector<SSE::type_DataInt> Map_Site_Qx;
         std::vector<SSE::type_DataInt> Map_Site_Qy;
+        std::vector<SSE::type_DataInt> Array_Diasites;
 
     public:
         explicit Class_Lattice(type_ParaHamil _ParaHamil,
@@ -70,6 +74,7 @@ namespace SSE{
         const std::vector<SSE::type_DataInt> &Get_Qy() const;
         SSE::type_NumSite Get_Sitediff(type_NumSite _which_site, type_NumSite _diff) const;
         const std::vector<SSE::type_DataInt> &Get_array_Sitediff(type_NumSite _diff) const;
+        const std::vector<SSE::type_DataInt> &Get_array_Diasites() const;
 
         // About update
         type_DataInt Get_RandomBond() const;
@@ -149,4 +154,8 @@ inline SSE::type_NumSite SSE::Class_Lattice::Get_Sitediff(type_NumSite _which_si
 
 inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_array_Sitediff(SSE::type_NumSite _diff) const {
     return Map_Site_DiffSite[_diff];
+}
+
+inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_array_Diasites() const {
+    return Array_Diasites;
 }

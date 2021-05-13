@@ -15,6 +15,8 @@
 #include <fstream>
 #include <array>
 #include "Class_fMat.h"
+#include <ctime>
+#include <stdexcept>
 
 namespace SSE{
     class Class_SSE {
@@ -74,6 +76,7 @@ namespace SSE{
         void WriteBins();
 
         void Measure_Corrf();
+        void Measure_Corrf_Simple();
         void Write_Corrf();
 
         void Write_Config(type_DataInt which_sweep);

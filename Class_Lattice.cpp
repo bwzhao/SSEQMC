@@ -24,6 +24,9 @@ SSE::Class_Lattice::Class_Lattice(type_ParaHamil _ParaHamil,
         } else {
             Map_Site_Sublattice.push_back(-1);
         }
+        if (index_x == index_y){
+            Array_Diasites.push_back(index_site);
+        }
     }
 
     //Initalize the plaquettePhase
@@ -52,6 +55,8 @@ SSE::Class_Lattice::Class_Lattice(type_ParaHamil _ParaHamil,
             else{
                 Map_Site_Qy.push_back(-1);
             }
+
+
         }
     }
 

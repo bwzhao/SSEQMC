@@ -7,11 +7,12 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <ctime>
 
 namespace SSE{
     // Data type
     using type_DataFloat = double;
-    using type_DataInt = int;
+    using type_DataInt = std::int_fast32_t;
 
     using type_NumSite = std::int_fast32_t;
 
