@@ -48,12 +48,12 @@ void SSE::Class_Space::Set_Class_Space(const SSE::Class_Lattice &_which_Lattice)
 
         //Site
         if (Ran_Int(ran_dev) >= 0.5){
-            Array_Spin[siteA] = 0;
+            Array_Spin[siteA] = -1;
             Array_Spin[siteB] = 1;
         }
         else{
             Array_Spin[siteA] = 1;
-            Array_Spin[siteB] = 0;
+            Array_Spin[siteB] = -1;
         }
     }
 }

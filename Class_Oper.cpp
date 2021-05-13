@@ -200,7 +200,8 @@ void SSE::Class_Oper::Update_fMat(SSE::Class_fMat &_which_fMat, const SSE::Class
             _which_fMat.Set_RowZero(index_Site_1);
         }
         else{
-            auto temp_weight = 2. * _which_Lattice.Get_ParaHamil().tx / _which_Lattice.Get_ParaHamil().Jx;
+            auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                                                                    2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
             _which_fMat.Multi_Row(index_Site_0, temp_weight);
             _which_fMat.Multi_Row(index_Site_1, temp_weight);
             _which_fMat.Swap_Row(index_Site_0, index_Site_1);
@@ -213,6 +214,41 @@ void SSE::Class_Oper::Update_fMat(SSE::Class_fMat &_which_fMat, const SSE::Class
             const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
 
             _which_fMat.SwapMinus_Row(index_Site_0, index_Site_1);
+        }
+    }
+    // Q2 oper
+    else{
+        if ((Which_Status == 0) or (Which_Status == 3)) {
+            const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+            const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+            const auto index_Site_2 = _which_Lattice.Get_OperSite(this->Which_Index, 2);
+            const auto index_Site_3 = _which_Lattice.Get_OperSite(this->Which_Index, 3);
+
+            _which_fMat.Set_RowZero(index_Site_0);
+            _which_fMat.Set_RowZero(index_Site_1);
+            _which_fMat.Set_RowZero(index_Site_2);
+            _which_fMat.Set_RowZero(index_Site_3);
+        }
+        else {
+            if (Which_Status % 2 != 0) {
+                const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 0);
+                const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 1);
+
+                auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                                                                        2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
+                _which_fMat.Multi_Row(index_Site_0, temp_weight);
+                _which_fMat.Multi_Row(index_Site_1, temp_weight);
+                _which_fMat.Swap_Row(index_Site_0, index_Site_1);
+            }
+            else {
+                const auto index_Site_0 = _which_Lattice.Get_OperSite(this->Which_Index, 2);
+                const auto index_Site_1 = _which_Lattice.Get_OperSite(this->Which_Index, 3);
+                auto temp_weight = _which_Lattice.Get_ParaHamil().tx / (_which_Lattice.Get_ParaHamil().Jx / 2 +
+                                                                        2 * _which_Lattice.Get_ParaHamil().Q2 / 4);
+                _which_fMat.Multi_Row(index_Site_0, temp_weight);
+                _which_fMat.Multi_Row(index_Site_1, temp_weight);
+                _which_fMat.Swap_Row(index_Site_0, index_Site_1);
+            }
         }
     }
 

@@ -6,7 +6,7 @@
 #include <vector>
 #include "Config.h"
 #include <valarray>
-#include <Eigen/Eigen>
+#include "Eigen/Eigen"
 #include "Class_CorrMeasurement.h"
 
 namespace SSE {
@@ -21,9 +21,7 @@ namespace SSE {
         Class_fMat() = default;
         // Initialize it as a identity matrix
         explicit Class_fMat(SSE::type_NumSite _size):
-                MatLinSize(_size),
-                Array_Index(_size / 2),
-                Mat(Eigen::Matrix<type_DataFloat, Eigen::Dynamic, Eigen::Dynamic>::Zero(_size, _size / 2))
+                MatLinSize(_size)
         {}
         ~Class_fMat() = default;
 
@@ -40,7 +38,7 @@ namespace SSE {
         }
 
         inline void Multi_Row(type_NumSite _index_row, type_DataFloat _val){
-            this->Mat.row(_index_row) *= _val;
+            Mat.row(_index_row) *= _val;
         }
 
         inline void Swap_Row(type_NumSite _index_row1, type_NumSite _index_row2){
@@ -48,9 +46,8 @@ namespace SSE {
         }
 
         inline void SwapMinus_Row(type_NumSite _index_row1, type_NumSite _index_row2){
-            const auto temp_row_1 = Mat.row(_index_row1);
             Mat.row(_index_row1) -= Mat.row(_index_row2);
-            Mat.row(_index_row2) -= temp_row_1;
+            Mat.row(_index_row2) = -Mat.row(_index_row1);
         }
 
         inline type_NumSite Get_Size(){
@@ -62,10 +59,18 @@ namespace SSE {
 
         // Reset element
         inline void Reset(const std::vector<type_DataInt> & _arraySpin){
+            auto count_up = std::count(_arraySpin.cbegin(), _arraySpin.cend(), 1);
+            Array_Index.clear();
+            Mat = Eigen::Matrix<type_DataFloat, Eigen::Dynamic, Eigen::Dynamic>::Zero(MatLinSize, count_up);
+
             type_DataInt index_col = 0;
-            for (type_DataInt index_spin = 0; index_spin != _arraySpin.size(); ++index_spin) {
-                Array_Index[index_col] = index_spin;
-                Mat(index_spin, index_col) = 0.5;
+            for (type_DataInt index_spin = 0; index_spin != MatLinSize; ++index_spin) {
+                if (_arraySpin[index_spin] == 1) {
+                    Array_Index.push_back(index_spin);
+                    Mat(index_spin, index_col) = 1;
+                    ++index_col;
+                }
+
             }
         }
 
