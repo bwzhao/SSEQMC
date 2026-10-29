@@ -63,7 +63,8 @@ inline SSE::type_DataFloat SSE::Class_Space::Measure_mz(const SSE::Class_Lattice
 inline SSE::type_DataFloat SSE::Class_Space::Measure_mu(const SSE::Class_Lattice &_which_Lattice) const {
 
     SSE::type_DataFloat sum_mu = std::accumulate(Array_Spin.cbegin(), Array_Spin.cend(),0);
-    sum_mu /= _which_Lattice.Get_NumSite() * 0.5;
+    // Spins are stored as +-1 = 2 S^z, same as in Measure_mz
+    sum_mu /= _which_Lattice.Get_NumSite() * 2;
 
     return sum_mu;
 }

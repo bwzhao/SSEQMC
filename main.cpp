@@ -14,6 +14,15 @@ int main(int argc, char *argv[]) {
     // Pre-calculation
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //input parameters
+    const int num_Para = 23;
+    if (argc != num_Para + 1) {
+        std::cerr << "Expected " << num_Para << " parameters, got " << argc - 1 << "." << std::endl
+                  << "Usage: " << argv[0]
+                  << " BC Num_Warmup Num_SweepinBin Num_Bin Which_Cpu Num_Segment Num_MeasureSegment"
+                  << " Dir_Config Dir_Data Dir_Corr"
+                  << " ty tx Jy Jx Q2 Q2s JfA JfB Q3 Q3s Lx Ly beta" << std::endl;
+        return 1;
+    }
     std::vector<std::string> para_main;
     for (decltype(argc) nl_arg = 0; nl_arg != argc; ++nl_arg) {
         std::string temp_string(argv[nl_arg]);

@@ -10,6 +10,7 @@
 #include <fstream>
 #include "Class_fMat.h"
 #include <ctime>
+#include <cstdint>
 
 namespace SSE{
     class Class_Oper {
@@ -51,8 +52,9 @@ namespace SSE{
         void Update_fVec(std::valarray<type_DataFloat> &_which_fVec, const SSE::Class_Lattice &_which_Lattice) const;
 
         // Write the list:
-        void Write_Oper(std::ofstream &_which_file);
-        void Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice);
+        void Write_Oper(std::ofstream &_which_file) const;
+        // Returns false if the file ran out or the record is not a valid operator
+        bool Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice);
 
     };
 }
@@ -92,21 +94,41 @@ inline SSE::type_DataInt SSE::Class_Oper::Get_Type() const {
     return Which_Type;
 }
 
-inline void SSE::Class_Oper::Write_Oper(std::ofstream &_which_file) {
-    _which_file.write(reinterpret_cast<char *>(&this->Which_Index), sizeof(decltype(this->Which_Index)));
-    _which_file.write(reinterpret_cast<char *>(&Which_Status), sizeof(decltype(this->Which_Status)));
+inline void SSE::Class_Oper::Write_Oper(std::ofstream &_which_file) const {
+    // Fixed-width fields: type_DataInt is 8 bytes on Linux but 4 bytes on macOS
+    const std::int32_t temp_Index = static_cast<std::int32_t>(this->Which_Index);
+    const std::int32_t temp_Status = static_cast<std::int32_t>(this->Which_Status);
+    _which_file.write(reinterpret_cast<const char *>(&temp_Index), sizeof(temp_Index));
+    _which_file.write(reinterpret_cast<const char *>(&temp_Status), sizeof(temp_Status));
 }
 
-inline void SSE::Class_Oper::Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice) {
-    _which_file.read(reinterpret_cast<char *>(&this->Which_Index), sizeof(decltype(this->Which_Index)));
-    _which_file.read(reinterpret_cast<char *>(&this->Which_Status), sizeof(decltype(this->Which_Status)));
-    if (this->Which_Index != -1) {
-        this->Set_Oper_temp(this->Which_Index, _which_Lattice);
+inline bool SSE::Class_Oper::Read_Oper(std::ifstream &_which_file, const SSE::Class_Lattice &_which_Lattice) {
+    std::int32_t temp_Index = 0;
+    std::int32_t temp_Status = 0;
+    _which_file.read(reinterpret_cast<char *>(&temp_Index), sizeof(temp_Index));
+    _which_file.read(reinterpret_cast<char *>(&temp_Status), sizeof(temp_Status));
+    if (!_which_file) {
+        return false;
     }
-    else{
-        this->Which_Index = SSE::OPERTYPE_ID;
-        this->Which_Type = DETAILEDTYPE_ID;
+
+    // Identity operator
+    if (temp_Index == -1) {
+        this->Reset_fromDiatoID();
+        this->Which_Status = 0;
+        return true;
     }
+    if ((temp_Index < 0) || (temp_Index >= _which_Lattice.Get_NumBond())) {
+        return false;
+    }
+
+    this->Set_Oper_temp(temp_Index, _which_Lattice);
+    // t and J operators have two states, Q2 has four (one bit per pair)
+    const SSE::type_DataInt num_Status = (this->Which_Type == SSE::OPERTYPE_Q2) ? 4 : 2;
+    if ((temp_Status < 0) || (temp_Status >= num_Status)) {
+        return false;
+    }
+    this->Which_Status = temp_Status;
+    return true;
 }
 
 

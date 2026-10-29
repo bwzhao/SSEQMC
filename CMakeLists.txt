@@ -19,6 +19,7 @@ add_executable(20210327_NewProgram
         Class_Space.h
         Class_LegLink.h
         Class_SiteLabel.h
-        Class_fMat.h)
+        Class_fMat.h
+        Random.h)
 
 #target_link_libraries (20210327_NewProgram Eigen3::Eigen)
