@@ -4,6 +4,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "Class_Lattice.h"
+#include <cmath>
 SSE::Class_Lattice::Class_Lattice(type_ParaHamil _ParaHamil,
                                   type_DataInt _which_cpu,
                                   type_DataInt _bc,
@@ -36,26 +37,10 @@ SSE::Class_Lattice::Class_Lattice(type_ParaHamil _ParaHamil,
     for (type_NumSite index_y = 0; index_y != _ParaHamil.Num_Y; ++index_y) {
         for (type_NumSite index_x = 0; index_x != _ParaHamil.Num_X; ++index_x) {
             SSE::Class_SiteLabel temp_SiteLabel(index_x, index_y);
-            if (index_x + index_y == 0) {
-                Map_Site_Qs.push_back(1);
-            }
-            else{
-                Map_Site_Qs.push_back(-1);
-            }
-            if (index_x == 0) {
-                Map_Site_Qx.push_back(1);
-            }
-            else{
-                Map_Site_Qx.push_back(-1);
-            }
-
-            if (index_y == 0) {
-                Map_Site_Qy.push_back(1);
-            }
-            else{
-                Map_Site_Qy.push_back(-1);
-            }
-
+            // Phase factor cos(Q * r), i.e. (-1)^(x+y), (-1)^x and (-1)^y
+            Map_Site_Qs.push_back(static_cast<SSE::type_DataInt>(std::lround(std::cos(Label_Qs * temp_SiteLabel))));
+            Map_Site_Qx.push_back(static_cast<SSE::type_DataInt>(std::lround(std::cos(Label_Qx * temp_SiteLabel))));
+            Map_Site_Qy.push_back(static_cast<SSE::type_DataInt>(std::lround(std::cos(Label_Qy * temp_SiteLabel))));
 
         }
     }

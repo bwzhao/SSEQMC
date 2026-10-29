@@ -10,6 +10,7 @@
 #include <numeric>
 #include <random>
 #include "Class_SiteLabel.h"
+#include "Random.h"
 #include <ctime>
 #include <algorithm>
 #include <stdexcept>
@@ -62,6 +63,7 @@ namespace SSE{
                                type_DataInt _Num_Segment);
 
         type_DataInt Get_NumSite() const;
+        type_DataInt Get_NumBond() const;
         type_DataFloat Get_Ratiosum() const;
         type_DataInt Get_CPU() const;
         type_DataInt Get_OperSite(type_NumSite _which_Index, type_NumSite _which_Site) const;
@@ -89,6 +91,10 @@ inline SSE::type_DataInt SSE::Class_Lattice::Get_NumSite() const{
     return Num_Site;
 }
 
+inline SSE::type_DataInt SSE::Class_Lattice::Get_NumBond() const{
+    return Num_Bond;
+}
+
 inline SSE::type_DataFloat SSE::Class_Lattice::Get_Ratiosum() const {
     return Ratio_Sum;
 }
@@ -98,10 +104,9 @@ inline SSE::type_DataInt SSE::Class_Lattice::Get_CPU() const {
 }
 
 inline SSE::type_DataInt SSE::Class_Lattice::Get_RandomBond() const{
-    static std::mt19937_64 engine(static_cast<unsigned>(std::time(nullptr) + Which_CPU));
     static std::discrete_distribution<SSE::type_NumSite> Ran_Bond(Map_Oper_OperWeight.begin(), Map_Oper_OperWeight.end());
 
-    return Ran_Bond(engine);
+    return Ran_Bond(Get_Engine());
 }
 
 inline SSE::type_DataInt SSE::Class_Lattice::Get_BondType(type_NumSite _which_Index) const{
@@ -125,11 +130,11 @@ inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_ArraySublat
 }
 
 inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_Map_Site_x1y0() const {
-    return Map_Site_x0y1;
+    return Map_Site_x1y0;
 }
 
 inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_Map_Site_x0y1() const {
-    return Map_Site_x1y0;
+    return Map_Site_x0y1;
 }
 
 inline const std::vector<SSE::type_DataInt> &SSE::Class_Lattice::Get_Qs() const {

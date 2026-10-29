@@ -4,6 +4,9 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "Class_SSE.h"
+#include <cstdint>
+#include <cstdio>
+#include <iterator>
 
 
 SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _which_cpu,
@@ -23,6 +26,9 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
         Array_OperLinkList(_num_Segment),
         Array_OperMapping(_num_Segment)
 {
+    // Seed the shared random engine before anything draws from it
+    SSE::Seed_Engine(_which_cpu);
+
     // Initialize Space
     ThisSpace.Set_Class_Space(ThisLattice);
 
@@ -76,6 +82,10 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
             MeasureData.emplace_back(temp_Class_DataMeasurement);
         }
     }
+    // Plus the operator numbers themselves, stored after all the quantities in Measure_woDynamics
+    for (const auto &which_operkey: SSE::Vec_OperNum) {
+        MeasureData.emplace_back(temp_Class_DataMeasurement);
+    }
 
     // Initialize f measurement
     SSE::Class_CorrMeasurement<SSE::type_DataFloat> temp_Array_Corr;
@@ -87,7 +97,7 @@ SSE::Class_SSE::Class_SSE(SSE::type_ParaHamil _para_Hamil, SSE::type_DataInt _wh
 
 void SSE::Class_SSE::DiagonalUpdate() {
     // Random number generator
-    static std::mt19937_64 engine(static_cast<unsigned>(std::time(nullptr) + ThisLattice.Get_CPU()));
+    auto & engine = SSE::Get_Engine();
     static std::uniform_real_distribution<SSE::type_DataFloat> Ran_Double(0., 1.);
 #ifndef NDEBUG
     auto temp_space = ThisSpace;
@@ -231,7 +241,7 @@ void SSE::Class_SSE::Generate_Linklist() {
 }
 
 void SSE::Class_SSE::Flip_Update() {
-    static std::mt19937_64 engine(static_cast<unsigned>(std::time(nullptr) + ThisLattice.Get_NumSite()));
+    auto & engine = SSE::Get_Engine();
     static std::uniform_real_distribution<SSE::type_DataFloat> Ran_Double(0., 1.);
 
     for (int nl_site = 0; nl_site != ThisLattice.Get_NumSite(); ++nl_site) {
@@ -269,7 +279,7 @@ void SSE::Class_SSE::Adjust_Cutoff() {
 
 void SSE::Class_SSE::Loop_Update() {
     //Choose a random color
-    static std::mt19937_64 engine(static_cast<unsigned>(std::time(nullptr) + ThisLattice.Get_CPU()));
+    auto & engine = SSE::Get_Engine();
     static std::uniform_real_distribution<SSE::type_DataFloat> Ran_Double(0., 1.);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -521,68 +531,148 @@ void SSE::Class_SSE::WriteBins() {
     outfile.close();
 }
 
+// Config file layout, all integers fixed-width in native byte order (little-endian on x86 and ARM):
+// magic, int64 sweep, int64 Num_Site, int64 Num_Segment, int64 segment length,
+// int32 spins, then (int32 index, int32 status) for every slot of every segment.
+namespace {
+    const char CONFIG_MAGIC[8] = {'S', 'S', 'E', 'Q', 'M', 'C', '0', '1'};
+
+    void Write_Int64(std::ofstream &_which_file, std::int64_t _value) {
+        _which_file.write(reinterpret_cast<const char *>(&_value), sizeof(_value));
+    }
+
+    bool Read_Int64(std::ifstream &_which_file, std::int64_t &_value) {
+        _which_file.read(reinterpret_cast<char *>(&_value), sizeof(_value));
+        return static_cast<bool>(_which_file);
+    }
+}
+
 void SSE::Class_SSE::Write_Config(SSE::type_DataInt which_sweep) {
-    //Write Spin
-    auto str_filename_info = Str_FileConfig + Str_NameClass + Str_NameFile + "_info.txt";
-    std::ofstream file_info(str_filename_info);
-    file_info << which_sweep << std::endl;
+    // Write to a temporary file and rename it over the old one, so a job killed while writing keeps the last good config
+    const auto str_filename = Str_FileConfig + Str_NameClass + Str_NameFile + "_config.bin";
+    const auto str_filename_temp = str_filename + ".tmp";
 
-    file_info << Array_Oper.back().size() << std::endl;
-    file_info << Num_Segment << std::endl;
-    file_info.close();
+    std::ofstream file_data(str_filename_temp, std::ios::out | std::ios::binary | std::ios::trunc);
+    file_data.write(CONFIG_MAGIC, sizeof(CONFIG_MAGIC));
+    Write_Int64(file_data, which_sweep);
+    Write_Int64(file_data, ThisLattice.Get_NumSite());
+    Write_Int64(file_data, Num_Segment);
+    Write_Int64(file_data, Array_Oper.back().size());
 
-    auto str_filename_data = Str_FileConfig + Str_NameClass + Str_NameFile + "_data.bin";
-    std::ofstream file_data(str_filename_data, std::ios::out | std::ios::binary);
-    file_data.write(reinterpret_cast<char *>(ThisSpace.Get_Array_Spin().data()), ThisSpace.Get_Array_Spin().size() * sizeof(decltype(ThisSpace.Get_Array_Spin().back())));
+    // Write Spin
+    for (const auto &which_spin: ThisSpace.Get_Array_Spin()) {
+        const std::int32_t temp_spin = static_cast<std::int32_t>(which_spin);
+        file_data.write(reinterpret_cast<const char *>(&temp_spin), sizeof(temp_spin));
+    }
 
     // Write the operator configuration
-    for (auto &which_Segment: Array_Oper) {
-        for (auto &which_oper: which_Segment) {
+    for (const auto &which_Segment: Array_Oper) {
+        for (const auto &which_oper: which_Segment) {
             which_oper.Write_Oper(file_data);
         }
     }
-    file_data.write(reinterpret_cast<char *>(Array_NumOper.data()), Num_Segment * sizeof(decltype(Array_NumOper.back())));
     file_data.close();
+
+    if (!file_data) {
+        std::cerr << "Warning! Could not write the config file " << str_filename_temp << std::endl;
+        std::remove(str_filename_temp.c_str());
+        return;
+    }
+    if (std::rename(str_filename_temp.c_str(), str_filename.c_str()) != 0) {
+        std::cerr << "Warning! Could not rename " << str_filename_temp << " to " << str_filename << std::endl;
+    }
 }
 
 SSE::type_DataInt SSE::Class_SSE::Read_Config(SSE::type_DataInt _total_sweep) {
-    auto str_filename_info = Str_FileConfig + Str_NameClass + Str_NameFile + "_info.txt";
-    std::ifstream file_info(str_filename_info);
+    const auto str_filename = Str_FileConfig + Str_NameClass + Str_NameFile + "_config.bin";
+    std::ifstream file_data(str_filename, std::ios::in | std::ios::binary);
 
-    if(!file_info.good()){
+    if (!file_data.good()) {
         std::cout << "There is no warmup file!" << std::endl;
-        file_info.close();
+        if (std::ifstream(Str_FileConfig + Str_NameClass + Str_NameFile + "_info.txt").good()) {
+            std::cout << "Found a config in the old _info.txt/_data.bin format, which is no longer read." << std::endl;
+        }
         return 0;
     }
-    SSE::type_DataInt which_sweep = 0;
-    file_info >> which_sweep;
 
-    decltype(Array_Oper.back().size()) size_Array_Oper_Segment = 0;
-    file_info >> size_Array_Oper_Segment;
-    for (auto &which_Oper_segment : Array_Oper) {
-        which_Oper_segment.resize(size_Array_Oper_Segment);
+    const auto reject_config = [&str_filename](const std::string &_reason) -> SSE::type_DataInt {
+        std::cerr << "Warning! Ignoring the config file " << str_filename << ": " << _reason
+                  << ". Starting from scratch." << std::endl;
+        return 0;
+    };
+
+    // Header
+    char temp_magic[sizeof(CONFIG_MAGIC)];
+    file_data.read(temp_magic, sizeof(temp_magic));
+    if (!file_data || !std::equal(std::begin(temp_magic), std::end(temp_magic), std::begin(CONFIG_MAGIC))) {
+        return reject_config("not a config file of this version");
     }
 
-    decltype(Array_NumOper.size()) size_Array_NumOper = 0;
-    file_info >> size_Array_NumOper;
-    Array_NumOper.resize(size_Array_NumOper);
+    std::int64_t which_sweep = 0;
+    std::int64_t num_site = 0;
+    std::int64_t num_segment = 0;
+    std::int64_t size_segment = 0;
+    if (!Read_Int64(file_data, which_sweep) || !Read_Int64(file_data, num_site)
+        || !Read_Int64(file_data, num_segment) || !Read_Int64(file_data, size_segment)) {
+        return reject_config("truncated header");
+    }
+    if ((which_sweep < 0) || (num_site != ThisLattice.Get_NumSite()) || (num_segment != Num_Segment)
+        || (size_segment <= 0)) {
+        return reject_config("header does not match the lattice size or number of segments");
+    }
 
-    file_info.close();
+    // Read into temporaries, and only replace the current configuration once the whole file checks out
+    std::vector<SSE::type_DataInt> temp_Array_Spin(num_site);
+    for (auto &which_spin: temp_Array_Spin) {
+        std::int32_t temp_spin = 0;
+        file_data.read(reinterpret_cast<char *>(&temp_spin), sizeof(temp_spin));
+        if (!file_data || ((temp_spin != 1) && (temp_spin != -1))) {
+            return reject_config("truncated or invalid spins");
+        }
+        which_spin = temp_spin;
+    }
 
-    auto str_filename_data = Str_FileConfig + Str_NameClass + Str_NameFile + "_data.bin";
-    std::ifstream file_data(str_filename_data, std::ios::in | std::ios::binary);
-    file_data.read(reinterpret_cast<char *>(ThisSpace.Get_Array_Spin().data()), ThisSpace.Get_Array_Spin().size() * sizeof(decltype(ThisSpace.Get_Array_Spin().back())));
-
-    for (auto &which_Segment: Array_Oper) {
-        for (auto &which_oper: which_Segment) {
-            which_oper.Read_Oper(file_data, ThisLattice);
+    std::vector<std::vector<SSE::Class_Oper>> temp_Array_Oper(Num_Segment, std::vector<SSE::Class_Oper>(size_segment));
+    std::vector<SSE::type_DataInt> temp_Array_NumOper(Num_Segment, 0);
+    for (type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment) {
+        for (auto &which_oper: temp_Array_Oper[index_Segment]) {
+            if (!which_oper.Read_Oper(file_data, ThisLattice)) {
+                return reject_config("truncated or invalid operators");
+            }
+            if (!which_oper.If_Identity()) {
+                ++temp_Array_NumOper[index_Segment];
+            }
         }
     }
+    if (file_data.peek() != std::ifstream::traits_type::eof()) {
+        return reject_config("unexpected data at the end of the file");
+    }
 
-    file_data.read(reinterpret_cast<char *>(Array_NumOper.data()), Num_Segment * sizeof(decltype(Array_NumOper.back())));
-    file_data.close();
+    // The operators must act on allowed spin states, and propagating through the whole string must come back
+    // to the starting state
+    SSE::Class_Space temp_Space = ThisSpace;
+    temp_Space.Get_Array_Spin() = temp_Array_Spin;
+    for (const auto &which_Segment: temp_Array_Oper) {
+        for (const auto &which_oper: which_Segment) {
+            if (which_oper.If_Identity()) {
+                continue;
+            }
+            auto temp_oper = which_oper;
+            if (!temp_oper.If_Suitable_andUpdateTypeOper(temp_Space, ThisLattice)) {
+                return reject_config("operator acts on a forbidden spin state");
+            }
+            which_oper.If_Dia_IfnotUpdateSpace(temp_Space, ThisLattice);
+        }
+    }
+    if (temp_Space.Get_Array_Spin() != temp_Array_Spin) {
+        return reject_config("operator string is not periodic in imaginary time");
+    }
 
-    return which_sweep;
+    ThisSpace.Get_Array_Spin() = temp_Array_Spin;
+    Array_Oper = std::move(temp_Array_Oper);
+    Array_NumOper = std::move(temp_Array_NumOper);
+
+    return static_cast<SSE::type_DataInt>(which_sweep);
 }
 
 void SSE::Class_SSE::Measure_Corrf() {
@@ -595,9 +685,12 @@ void SSE::Class_SSE::Measure_Corrf() {
     static std::vector<std::valarray<type_DataFloat>> array_vec_Gq(ThisLattice.Get_NumSite(), std::valarray<type_DataFloat>(Num_Measure_TimeSlices));
 
     SSE::type_DataInt val_taudiff = 0;
+    bool if_Measure = true;
     for (type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment){
+        // Too few segments left for a full set of time slices: stop measuring, but keep propagating the space
+        // through the rest of the operator string, so it ends up back at tau = 0
         if ((Num_Measure_TimeSlices - val_taudiff) > (Num_Segment - index_Segment)) {
-            break;
+            if_Measure = false;
         }
 
         // Update ftau
@@ -607,8 +700,13 @@ void SSE::Class_SSE::Measure_Corrf() {
                 which_oper.If_Dia_IfnotUpdateSpace(ThisSpace, ThisLattice);
 
                 // Update fMat only if it is not the last slice
-                which_oper.Update_fMat(temp_fMat, ThisLattice);
+                if (if_Measure) {
+                    which_oper.Update_fMat(temp_fMat, ThisLattice);
+                }
             }
+        }
+        if (!if_Measure) {
+            continue;
         }
 
         // value of tau plus one
@@ -637,9 +735,11 @@ void SSE::Class_SSE::Measure_Corrf_Simple() {
 //    static std::vector<std::valarray<type_DataFloat>> array_vec_Gq(ThisLattice.Get_NumSite(), std::valarray<type_DataFloat>(Num_Measure_TimeSlices));
 
     SSE::type_DataInt val_taudiff = 0;
+    bool if_Measure = true;
     for (type_DataInt index_Segment = 0; index_Segment != Num_Segment; ++index_Segment){
+        // Same as Measure_Corrf: keep propagating the space back to tau = 0 after measuring stops
         if ((Num_Measure_TimeSlices - val_taudiff) > (Num_Segment - index_Segment)) {
-            break;
+            if_Measure = false;
         }
 
         // Update ftau
@@ -649,8 +749,13 @@ void SSE::Class_SSE::Measure_Corrf_Simple() {
                 which_oper.If_Dia_IfnotUpdateSpace(ThisSpace, ThisLattice);
 
                 // Update fMat only if it is not the last slice
-                which_oper.Update_fVec(temp_Gx, ThisLattice);
+                if (if_Measure) {
+                    which_oper.Update_fVec(temp_Gx, ThisLattice);
+                }
             }
+        }
+        if (!if_Measure) {
+            continue;
         }
 
         // value of tau plus one

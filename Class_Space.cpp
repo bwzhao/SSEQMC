@@ -36,18 +36,18 @@ void SSE::Class_Space::Set_Class_Space(const SSE::Class_Lattice &_which_Lattice)
         }
     }
 
-    static std::random_device ran_dev;
+    auto & engine = Get_Engine();
     static std::uniform_real_distribution<SSE::type_DataFloat> Ran_Int(0, 1);
 
-    std::shuffle(SitaA_Array.begin(), SitaA_Array.end(), ran_dev);
-    std::shuffle(SitaB_Array.begin(), SitaB_Array.end(), ran_dev);
+    std::shuffle(SitaA_Array.begin(), SitaA_Array.end(), engine);
+    std::shuffle(SitaB_Array.begin(), SitaB_Array.end(), engine);
 
     for(type_DataInt index_site = 0; index_site != SitaA_Array.size(); ++index_site){
         auto siteA = SitaA_Array[index_site];
         auto siteB = SitaB_Array[index_site];
 
         //Site
-        if (Ran_Int(ran_dev) >= 0.5){
+        if (Ran_Int(engine) >= 0.5){
             Array_Spin[siteA] = -1;
             Array_Spin[siteB] = 1;
         }
